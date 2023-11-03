@@ -10,13 +10,13 @@ def get_entry_value():
 window = customtkinter.CTk()
 window.geometry("300x400")
 
-"""frame = customtkinter.CTkFrame(window, width=250, height=200)
+frame = customtkinter.CTkFrame(window, width=250, height=200)
 frame.pack()
 
 img = ImageTk.PhotoImage(Image.open("logo.png"))
 
 label = Label(frame, image = img)
-label.pack(pady = 5)"""
+label.pack(pady = 5)
 
 entry = customtkinter.CTkEntry(master=window, placeholder_text="Enter a UID")
 

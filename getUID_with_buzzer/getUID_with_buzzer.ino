@@ -1,28 +1,33 @@
+//Libraries
+
 #include <SPI.h>
 #include <MFRC522.h>
 #include <EEPROM.h>
 #include <Servo.h>
-#include <AES.h>
 #include <stdint.h>
 #include <string.h>
 
 #define RST_PIN 9
 #define SS_PIN 10
-
+#define BUZZER 5
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 
-#define BUZZER 5
-
+//Global variables
 unsigned long uid;
 unsigned long null = 00000000;
 int pos;
 Servo myservo;
 bool unlocked = false;
 
-AES128 aes;
-
 void setup() {
+  // Empty authorized users and reset count
+  /*int g;
+  for(g = 8; g < 1024; g += 1){
+    EEPROM.write(g,0);
+  }
+  EEPROM.write(1023,1); */
+
 
 // Set up connection
   Serial.begin(9600);
@@ -32,10 +37,10 @@ void setup() {
   myservo.write(135);
 
 // Set up storage
-  //unsigned long AuthorizedTags[] = {};
   unsigned long ownerTag = 3225510982;
   EEPROM.put(0,ownerTag);
   
+  // Start when the serial connection is established
   while (!Serial);
   SPI.begin();
   mfrc522.PCD_Init();
@@ -45,28 +50,41 @@ void setup() {
 void loop() {
 
   if(Serial.available() > 0){
+    // Retrieve received data
     String data;
     data = Serial.readString();
-    String res = caesar_decrypt(data,1);
-    unsigned long hexValue = strtoul(res.c_str(), nullptr, 16);
+
+    // Decrypt the data
+    String decrypted = caesar_decrypt(data,1);
+
+    // Convert string to hex
+    unsigned long hex = strtoul(decrypted.c_str(), nullptr, 16);
+
+    // Notify the user it has worked and add it to the EEPROM
     buzz();
-    Serial.println(hexValue);
-    addEEPROM(hexValue);
+    addEEPROM(hex);
+
+    // Empty the buffer
     Serial.end();
     Serial.begin(9600);
     
   }
 
+  // New tag is detected
   if(mfrc522.PICC_IsNewCardPresent()) {
+    
     if (mfrc522.PICC_ReadCardSerial()) {
+      
       uid = getID();
       int i;
-      for(i=0;i <= 1023; i = i + 8){
+      
+      // Check EEPROM for uid
+      for(i=0;i < count*8; i = i + 8){
         unsigned long uidlst;
         EEPROM.get(i,uidlst);
   
         if(uid == uidlst){
-          Serial.print("UID: "); Serial.print(uid); Serial.println(", Status: Authorized");
+          // Lock or unlock based on status
           if(unlocked){
             lockServo();
             unlocked = false;
@@ -77,7 +95,8 @@ void loop() {
         return;
         }
       }
-      Serial.print("UID: "); Serial.print(uid); Serial.println(", Status: Unauthorized");
+
+      // Alarm if not known uid
       for(i=0;i < 5; i = i+1){
         buzz();
       }    
@@ -146,20 +165,44 @@ String caesar_decrypt(String text, int shift) {
 
 void addEEPROM(unsigned long uid){
   int i = isAdded(uid);
-  if (i > 0){
-    EEPROM.put(i,null);
-    EEPROM.write(1023,count-1)
-  } else if (i == -1) {
-    int count = EEPROM.read(1023);
+  int count = EEPROM.read(1023);
+  if (i > 0){ // uid exists in EEPROM at i, remove uid
+    
+    // If the uid is somewhere in the middle, move all others
+    if (i/8 < count){
+      int j;
+      unsigned long temp;
+      for(j = i/8; j < count-1; j += 1){
+        EEPROM.get((j+1)*8,temp);
+        EEPROM.put(j*8,temp);   
+      }
+
+      // erase last one
+      EEPROM.put((j)*8,null);
+
+    } else {
+
+      // erase last one
+      EEPROM.put(i,null);
+    }
+
+    // Count -1
+    EEPROM.write(1023,count-1);
+
+  } else if (i == -1) { // uid DNE in EEPROM, add uid
     EEPROM.put(count*8,uid);
+
+    // Count +1
     EEPROM.write(1023,count+1);
   }
   
 }
 
+// Checks whether uid is in EEPROM and returns the EEPROM address
 int isAdded(unsigned long uid){
   int count = EEPROM.read(1023);
   int i;
+  
   for(i=0;i < 8*count; i = i + 8){
     unsigned long uidlst;
     EEPROM.get(i,uidlst);
