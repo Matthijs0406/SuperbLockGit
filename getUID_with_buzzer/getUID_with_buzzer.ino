@@ -124,11 +124,15 @@ void openServo(){                    // waits 15ms for the servo to reach the po
   
 }
 
+// UID in Byte array to unsigned long
 unsigned long getID(){
   unsigned long hex_num = 0;
 
+  // For every byte in the byte array
   for (byte i = 0; i < mfrc522.uid.size; i++) {
+    // Shift 8 bits left
     hex_num <<= 8;
+    // Append the byte to hex_num
     hex_num |= mfrc522.uid.uidByte[i];
   }
 
@@ -139,13 +143,18 @@ unsigned long getID(){
 String caesar_decrypt(String text, int shift) {
   String result = "";
 
+  // Iterate through every char in text
   for (char character : text) {
     if (isAlpha(character)) {
+      // Store whether the character was upper or lower
       bool isUpper = isUpperCase(character);
       character = toLowerCase(character);
       int charCode = character - 'a';
+
+      // Decipher using caesar
       charCode = (charCode - shift + 26) % 26 + 'a';
 
+      // Convert back to upper if needed
       if (isUpper) {
         character = toupper(charCode);
       } else {
@@ -153,6 +162,8 @@ String caesar_decrypt(String text, int shift) {
       }
     } else if (isDigit(character)) {
       int digit = character - '0';
+
+      // Decipher using caesar
       digit = (digit + shift) % 10 + '0';
       character = digit;
     }
@@ -194,6 +205,7 @@ void addEEPROM(unsigned long uid){
 
     // Count +1
     EEPROM.write(1023,count+1);
+    Serial.println('tag added!');
   }
   
 }
